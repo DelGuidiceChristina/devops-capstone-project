@@ -7,7 +7,10 @@ Test cases can be run with the following:
 """
 import os
 import logging
+import service
+import unittest
 from unittest import TestCase
+from unittest.mock import patch
 from tests.factories import AccountFactory
 from service.common import status  # HTTP Status Codes
 from service.models import db, Account, init_db
@@ -139,3 +142,58 @@ class TestAccountService(TestCase):
         """It should not Read an Account that is not found"""
         resp = self.client.get(f"{BASE_URL}/0")
         self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)   
+
+    # TEST_LIST_ALL_ACCOUNTS
+
+    import service
+    from unittest.mock import patch, MagicMock
+    from service.models import Account
+    from service.routes import app
+
+class TestListAccounts(unittest.TestCase):
+
+    def setUp(self):
+        app.config['TESTING'] = True
+        self.app = app.test_client()
+
+    def tearDown(self):
+        pass
+
+    @patch('service.models.Account.all')
+    def test_list_all_accounts(self, mock_all):
+        """Test that all accounts are returned"""
+        # Create mock accounts to return
+        mock_accounts = [
+            {'id': 1, 'name': 'John', 'email': 'john@example.com'},
+            {'id': 2, 'name': 'Jane', 'email': 'jane@example.com'}
+        ]
+        mock_all.return_value = [Account(**a) for a in mock_accounts]
+
+        # Send GET request to list all accounts
+        response = self.app.get('/accounts')
+
+        # Check that response code is HTTP_200_OK
+        self.assertEqual(response.status_code, 200)
+
+        # Check that the response data is a list of dictionaries
+        data = response.get_json()
+        self.assertIsInstance(data, list)
+        self.assertIsInstance(data[0], dict)
+
+        # Check that the response data matches the mock accounts
+        self.assertEqual(data, mock_accounts)
+
+    @patch('service.models.Account.all')
+    def test_list_all_accounts_empty(self, mock_all):
+        """Test that an empty list is returned when there are no accounts"""
+        mock_all.return_value = []
+
+        # Send GET request to list all accounts
+        response = self.app.get('/accounts')
+
+        # Check that response code is HTTP_200_OK
+        self.assertEqual(response.status_code, 200)
+
+        # Check that the response data is an empty list
+        data = response.get_json()
+        self.assertEqual(data, [])
