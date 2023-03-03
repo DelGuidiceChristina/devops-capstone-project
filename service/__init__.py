@@ -9,6 +9,8 @@ from flask import Flask
 from service import config
 from service.common import log_handlers
 from flask_talisman import Talisman
+from flask_cors import CORS
+
 # Create Flask application
 app = Flask(__name__)
 app.config.from_object(config)
@@ -43,6 +45,9 @@ app = Flask(__name__)
 
 # create an instance of the Talisman class
 talisman = Talisman(app)
+
+# create an instance of the CORS class
+CORS(app)
 
 # define your app routes and logic here
 @app.route('/')
