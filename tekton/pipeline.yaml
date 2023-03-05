@@ -13,6 +13,26 @@ spec:
     - name: repo-url
     - name: build-image
       default: main
+  tasks:
+  - name: lint
+    workspaces:
+        - name: source
+          workspace: pipeline-workspace
+    taskRef:
+        name: flake8
+    params:
+    - name: image
+      value: "python:3.9-slim"
+    - name: args
+      value: ["--count","--max-complexity=10","--max-line-length=127","--statistics"]
+      runAfter:
+        - clone
+    - name: init
+      workspaces:
+        - name: source
+          workspace: pipeline-workspace          
+      taskRef:
+        name: cleanup
     - name: build
       workspaces:
         - name: source
@@ -26,4 +46,34 @@ spec:
       runAfter:
         - tests
         - lint
-   
+    - name: tests
+      workspaces:
+        - name: source
+          workspace: pipeline-workspace
+      taskRef:
+        name: nose
+      params:
+      - name: database_uri
+        value: "sqlite:///test.db"
+      - name: args
+        value: "-v --with-spec --spec-color"
+      runAfter:
+        - clone
+    - name: deploy
+      workspaces:
+        - name: manifest-dir
+          workspace: pipeline-workspace
+      taskRef:
+        name: openshift-client
+        kind: ClusterTask
+      params:
+      - name: SCRIPT
+        value: |
+          echo "Updating manifest..."
+          sed -i "s|IMAGE_NAME_HERE|$(params.build-image)|g" deploy/deployment.yaml
+          cat deploy/deployment.yaml
+          echo "Deploying to OpenShift..."
+          oc apply -f deploy/
+          oc get pods -l app=accounts
+      runAfter:
+        - build
